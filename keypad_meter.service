@@ -1,0 +1,23 @@
+[Unit]
+Description=Power NI keypad+ meter -> Home Assistant (MQTT)
+After=network-online.target bluetooth.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Environment=METER_MAC=AA:BB:CC:DD:EE:FF
+Environment=METER_CH=6
+Environment=MQTT_HOST=192.168.1.10
+Environment=MQTT_PORT=1883
+Environment=MQTT_USER=your_mqtt_user
+Environment=MQTT_PASS=your_mqtt_password
+Environment=POLL_SECS=1200
+# BT often boots rfkill-blocked; bring it up as root before the poller
+ExecStartPre=+/bin/sh -c 'rfkill unblock bluetooth; hciconfig hci0 up || true; sleep 2'
+ExecStart=/usr/bin/python3 /home/pi/keypad_meter.py
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
