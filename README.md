@@ -8,6 +8,22 @@ This is for the **Power NI keypad+** prepayment meter (the in-home unit with the
 
 ---
 
+## Two ways to run it
+
+Whichever you pick, the machine doing the reading needs a **Bluetooth adapter within range of the meter** (it's Bluetooth Classic, not BLE).
+
+- **🏠 Home Assistant add-on** — if you run **HA OS / Supervised on a Pi or mini-PC near the meter**, add this repo as an add-on repository and configure everything in the HA UI. See [`powerni_keypad/DOCS.md`](powerni_keypad/DOCS.md).
+
+  In HA: **Settings → Add-ons → Add-on Store → ⋮ → Repositories**, add
+  `https://github.com/itconor/powerni-keypad-plus-mqtt`, then install **PowerNI keypad+ Meter**.
+  It auto-uses the Mosquitto broker add-on — just set your meter's MAC and start it.
+
+- **🐧 Standalone script** — if your HA runs in a **VM / away from the meter**, run `keypad_meter.py` as a systemd service on a small Linux box (a **Pi Zero W** is ideal) sitting next to the meter. Instructions below.
+
+Both publish the same three MQTT-discovery sensors to Home Assistant.
+
+---
+
 ## What you get in Home Assistant
 
 Three sensors are created automatically via MQTT discovery (device **"Electricity Meter"**):
