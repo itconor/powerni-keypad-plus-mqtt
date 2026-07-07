@@ -30,44 +30,33 @@ proxies cannot help.
   automatically), or any MQTT broker.
 - The **MQTT integration** enabled in Home Assistant.
 
-## Step 1 — Pair the meter (one time)
-
-Pairing uses interactive passkey entry and must be done on the **host**, not inside
-this add-on. Install the **Advanced SSH & Web Terminal** add-on (protection mode off),
-then:
-
-```bash
-bluetoothctl
-  power on
-  agent KeyboardDisplay
-  default-agent
-  pairable on
-  scan on            # note the meter's MAC — name B2200xxx, class 0x240404
-  pair AA:BB:CC:DD:EE:FF
-```
-
-The host prints a 6-digit `Passkey: NNNNNN` — **type that on the meter's keypad**
-(the entry window is short, so be ready). Only one device can be connected to the
-meter at a time — make sure it isn't paired to your phone.
-
-Find the RFCOMM channel if it isn't 6:
-
-```bash
-sdptool browse AA:BB:CC:DD:EE:FF     # look for the Serial Port / SPP channel
-```
-
-## Step 2 — Configure the add-on
+## Step 1 — Configure the add-on
 
 | Option | Meaning |
 |---|---|
-| `meter_mac` | Your meter's Bluetooth MAC (from pairing) |
+| `meter_mac` | Your meter's Bluetooth MAC |
 | `meter_channel` | RFCOMM channel — **6** on the meters tested |
 | `poll_seconds` | Seconds between reads (default 1200 = 20 min) |
 | `mqtt_host` | **Leave blank** to auto-use the Mosquitto add-on. Set it only to point at an external broker. |
 | `mqtt_port` / `mqtt_user` / `mqtt_pass` | Only used when `mqtt_host` is set |
 
-Start the add-on and watch the **Log** tab — you should see it connect to the broker
-and read the meter.
+**Finding the MAC:** the meter advertises as **`B2200xxx`** (class `0x240404`). If you
+don't know its MAC, the quickest way is the phone's Bluetooth screen, or the
+**Advanced SSH & Web Terminal** add-on (`bluetoothctl` → `scan on`).
+
+## Step 2 — Pair the meter, in Home Assistant
+
+Start the add-on, then open the **"Meter Pairing"** panel (it appears in the HA
+sidebar, and under the add-on's **Ingress** page). Press **Pair meter** — a **6-digit
+passkey** appears on the page. **Type that on the meter's keypad** while it's shown
+(the window is short, so be ready).
+
+- Make sure the meter isn't connected to your phone (single connection only).
+- On success the page shows **paired ✔** and the reader (bridge) starts automatically.
+- No SSH or `bluetoothctl` needed — it drives the host's Bluetooth for you.
+
+Once paired, the three sensors appear in Home Assistant within one poll cycle. The
+panel also shows the bridge status and a live log.
 
 ## What you get
 

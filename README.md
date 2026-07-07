@@ -16,7 +16,9 @@ Whichever you pick, the machine doing the reading needs a **Bluetooth adapter wi
 
   In HA: **Settings → Add-ons → Add-on Store → ⋮ → Repositories**, add
   `https://github.com/itconor/powerni-keypad-plus-mqtt`, then install **PowerNI keypad+ Meter**.
-  It auto-uses the Mosquitto broker add-on — just set your meter's MAC and start it.
+  It auto-uses the Mosquitto broker add-on — set your meter's MAC, then **pair the meter
+  right in HA** from the add-on's **Meter Pairing** panel (it shows the passkey to type on
+  the meter — no SSH needed).
 
 - **🐧 Standalone script** — if your HA runs in a **VM / away from the meter**, run `keypad_meter.py` as a systemd service on a small Linux box (a **Pi Zero W** is ideal) sitting next to the meter. Instructions below.
 

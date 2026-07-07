@@ -33,5 +33,8 @@ else
     exit 1
 fi
 
-bashio::log.info "Starting PowerNI keypad+ bridge (meter ${METER_MAC} ch ${METER_CH}, poll ${POLL_SECS}s)"
-exec python3 /keypad_meter.py
+export INGRESS_PORT=8099
+bashio::log.info "Meter ${METER_MAC} ch ${METER_CH}, poll ${POLL_SECS}s — open the 'Meter Pairing' panel to pair."
+# pair_ui.py serves the ingress pairing page AND supervises keypad_meter.py
+# (auto-starts the bridge once the meter is paired).
+exec python3 /pair_ui.py

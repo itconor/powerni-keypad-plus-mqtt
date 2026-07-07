@@ -1,5 +1,5 @@
 name: PowerNI keypad+ Meter
-version: "1.0.0"
+version: "1.1.0"
 slug: powerni_keypad
 description: Read a PowerNI keypad+ prepayment meter over Bluetooth and publish balance / days / units to Home Assistant via MQTT discovery.
 url: https://github.com/itconor/powerni-keypad-plus-mqtt
@@ -10,6 +10,11 @@ arch:
   - amd64
 startup: services
 boot: auto
+# In-HA pairing + status page (sidebar panel)
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:bluetooth-connect
+panel_title: Meter Pairing
 # Bluetooth Classic (RFCOMM) needs host D-Bus (BlueZ) + raw socket capabilities
 host_dbus: true
 privileged:
