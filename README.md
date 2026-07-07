@@ -1,5 +1,8 @@
 # Power NI keypad+ → Home Assistant (MQTT bridge)
 
+[![Build & publish Docker image](https://github.com/itconor/powerni-keypad-plus-mqtt/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/itconor/powerni-keypad-plus-mqtt/actions/workflows/docker-publish.yml)
+[![GHCR image](https://img.shields.io/badge/ghcr.io-powerni--keypad--plus--mqtt-blue?logo=docker)](https://github.com/itconor/powerni-keypad-plus-mqtt/pkgs/container/powerni-keypad-plus-mqtt)
+
 Reads your **Power NI keypad+** prepayment electricity meter over Bluetooth and publishes the readings to **Home Assistant** via MQTT auto-discovery — so you can see your **credit balance**, **days of credit left** and **import units** on your dashboard and get low-balance alerts.
 
 > **Read-only.** This bridge only *reads* the meter's display. It never enters tokens, tops up, or changes anything on the meter.
@@ -47,11 +50,13 @@ Notes:
 
 ### Use the prebuilt image (skip the build)
 
-A multi-arch image (amd64 / arm64 / armv7) is published to GHCR on every release:
+A **public, multi-arch** image (`linux/amd64`, `linux/arm64`, `linux/arm/v7`) is published to GHCR automatically on every push to `main` and every `v*` tag — so you can pull it directly, no build step:
 
 ```bash
 docker pull ghcr.io/itconor/powerni-keypad-plus-mqtt:latest
 ```
+
+Tags: `latest` (main), `sha-<short>` per commit, and `vX.Y.Z` on releases. Docker auto-selects the right architecture (x86, 64-bit Pi, or 32-bit Pi).
 
 To use it, replace the `build:` block in `docker-compose.yml` with:
 
