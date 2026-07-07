@@ -45,6 +45,22 @@ Notes:
 - Leave `METER_MAC` blank in `.env` to pick the meter in the GUI, or set it to force a MAC.
 - If the scan finds nothing, the host has no Bluetooth adapter in range — same requirement as every other mode.
 
+### Use the prebuilt image (skip the build)
+
+A multi-arch image (amd64 / arm64 / armv7) is published to GHCR on every release:
+
+```bash
+docker pull ghcr.io/itconor/powerni-keypad-plus-mqtt:latest
+```
+
+To use it, replace the `build:` block in `docker-compose.yml` with:
+
+```yaml
+    image: ghcr.io/itconor/powerni-keypad-plus-mqtt:latest
+```
+
+(keep the `network_mode`, `privileged`, `volumes` and `environment` sections as-is).
+
 ---
 
 ## What you get in Home Assistant
