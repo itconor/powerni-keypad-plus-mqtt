@@ -135,13 +135,16 @@ def do_pair(mac):
     try:
         child = pexpect.spawn("bluetoothctl", encoding="utf-8", timeout=5,
                               codec_errors="ignore")
-        for c in ("power on", "agent KeyboardDisplay", "default-agent", "pairable on"):
+        for c in ("power on", "agent KeyboardDisplay", "default-agent",
+                  "pairable on", "scan on"):
             child.sendline(c); time.sleep(0.5)
         STATE["status"] = "pairing…"
-        log("Make sure the meter isn't connected to your phone.")
+        log("Meter allows only ONE connection — turn the phone's Bluetooth OFF first.")
+        time.sleep(3)
+        attempts = 1
         child.sendline(f"pair {mac}")
 
-        deadline = time.monotonic() + 150
+        deadline = time.monotonic() + 180
         pending = ""
         while time.monotonic() < deadline and STATE["pairing"]:
             try:
@@ -188,6 +191,16 @@ def do_pair(mac):
                     try: _btctl(f"trust {mac}")
                     except Exception: pass
                     break
+                elif "connectionattemptfailed" in low:
+                    if attempts < 3:
+                        attempts += 1
+                        log(f"Connection failed — retry {attempts}/3. Turn the phone's Bluetooth OFF (it holds the meter's only connection).")
+                        time.sleep(3)
+                        child.sendline(f"pair {mac}")
+                    else:
+                        STATE["status"] = "failed — connection kept failing"
+                        log("Still failing after 3 tries. Turn OFF the phone's Bluetooth + force-quit the PowerNI app, then Pair again.")
+                        break
                 elif ("failed to pair" in low or "not available" in low
                       or "org.bluez.error" in low or "authentication failed" in low):
                     STATE["status"] = "failed — retry"
