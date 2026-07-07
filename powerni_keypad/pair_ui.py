@@ -14,7 +14,7 @@ the add-on Configuration tab (if any) takes precedence.
 import os, re, sys, time, threading, subprocess, collections
 from flask import Flask, jsonify, request, render_template_string
 
-VERSION     = "1.2.5"
+VERSION     = "1.2.6"
 PLACEHOLDER = "AA:BB:CC:DD:EE:FF"
 DATA_DIR    = "/data"
 MAC_FILE    = os.path.join(DATA_DIR, "meter_mac")
@@ -137,7 +137,7 @@ def bt_diag():
         t = _sock.socket(af, _sock.SOCK_STREAM, proto); t.close()
         log("raw RFCOMM socket: OK ✔  → privileged BT access is working")
     except OSError as e:
-        hint = {97: "seccomp/sandbox still blocking → full_access not active (update to this version + Protection mode OFF + restart)",
+        hint = {97: "AF_BLUETOOTH only works in the HOST network namespace → add-on needs host_network: true (fixed in v1.2.6). Update + restart.",
                 93: "kernel has no Bluetooth-Classic RFCOMM → can't run in-container; use the standalone Docker/script on a Pi-OS box"}.get(e.errno, "")
         log(f"raw RFCOMM socket: FAILED errno {e.errno} ({e.strerror})")
         if hint:
