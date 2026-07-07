@@ -123,6 +123,23 @@ def do_scan(secs=12):
         if STATE["paired"]:
             start_bridge()
 
+def do_reset():
+    """Recover a wedged adapter / half-bonded device: power-cycle + remove."""
+    stop_bridge()
+    STATE.update(status="resetting Bluetooth…", passkey="", paired=False)
+    log("Resetting the Bluetooth adapter…")
+    try:
+        _btctl("power off"); time.sleep(2)
+        _btctl("power on");  time.sleep(1)
+        if is_real_mac(STATE["mac"]):
+            _btctl(f"remove {STATE['mac']}")
+            log(f"Power-cycled the adapter and cleared {STATE['mac']}. Scan again, then Pair.")
+        else:
+            log("Power-cycled the adapter. Scan again, then Pair.")
+        STATE.update(status="reset done — scan again", devices=[])
+    except Exception as e:
+        STATE["status"] = f"reset error: {e}"; log(f"Reset error: {e}")
+
 def do_pair(mac):
     try:
         import pexpect
@@ -282,6 +299,7 @@ pre{background:#0a1120;border:1px solid #24334f;border-radius:8px;padding:10px;m
     <button id=scan onclick="scan()">Scan for meter</button>
     <button id=pair onclick="pair()">Pair selected</button>
     <button class=sec onclick="unpair()">Remove pairing</button>
+    <button class=sec onclick="reset()">Reset Bluetooth</button>
   </div>
   <div id=keywrap style="display:none">
     <div class=mu style="margin-top:12px">Type this on the meter keypad now:</div>
@@ -301,6 +319,7 @@ function cls(el,c){el.className='pill '+c}
 async function scan(){ await fetch('scan',{method:'POST'}); }
 async function pair(){ await fetch('pair',{method:'POST'}); }
 async function unpair(){ await fetch('unpair',{method:'POST'}); }
+async function reset(){ await fetch('reset',{method:'POST'}); }
 async function pick(mac){ await fetch('select?mac='+encodeURIComponent(mac),{method:'POST'}); }
 function devRow(d,sel){
   const b = d.mac===sel ? '<span class=tag>selected</span>'
@@ -356,6 +375,12 @@ def select():
         log(f"Selected meter {mac}")
         if STATE["paired"]:
             start_bridge()
+    return ("", 204)
+
+@app.post("/reset")
+def reset():
+    if not (STATE["pairing"] or STATE["scanning"]):
+        threading.Thread(target=do_reset, daemon=True).start()
     return ("", 204)
 
 @app.post("/pair")
