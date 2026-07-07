@@ -1,0 +1,28 @@
+services:
+  powerni-keypad:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: powerni-keypad:latest
+    container_name: powerni-keypad
+    restart: unless-stopped
+    # host networking = the web GUI is on the host's :8099 and BlueZ works cleanly
+    network_mode: host
+    # Bluetooth Classic (RFCOMM) needs raw socket access + the host's bluetoothd
+    privileged: true
+    volumes:
+      - /var/run/dbus:/var/run/dbus:ro   # talk to the host's bluetoothd (pairing)
+      - ./data:/data                     # persists the selected meter MAC
+    environment:
+      # --- Meter ---
+      # Leave METER_MAC blank and pick it in the web GUI (Scan), or set it here.
+      METER_MAC: "${METER_MAC:-}"
+      METER_CH:  "${METER_CH:-6}"
+      POLL_SECS: "${POLL_SECS:-1200}"
+      # --- MQTT broker (required for the Home Assistant sensors) ---
+      MQTT_HOST: "${MQTT_HOST:-127.0.0.1}"
+      MQTT_PORT: "${MQTT_PORT:-1883}"
+      MQTT_USER: "${MQTT_USER:-}"
+      MQTT_PASS: "${MQTT_PASS:-}"
+      # web GUI / ingress port
+      INGRESS_PORT: "8099"

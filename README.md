@@ -8,9 +8,9 @@ This is for the **Power NI keypad+** prepayment meter (the in-home unit with the
 
 ---
 
-## Two ways to run it
+## Ways to run it
 
-Whichever you pick, the machine doing the reading needs a **Bluetooth adapter within range of the meter** (it's Bluetooth Classic, not BLE).
+Whichever you pick, the machine doing the reading needs a **Bluetooth adapter within range of the meter** (it's Bluetooth Classic, not BLE). All three publish the same three MQTT-discovery sensors to Home Assistant.
 
 - **🏠 Home Assistant add-on** — if you run **HA OS / Supervised on a Pi or mini-PC near the meter**, add this repo as an add-on repository and configure everything in the HA UI. See [`powerni_keypad/DOCS.md`](powerni_keypad/DOCS.md).
 
@@ -19,9 +19,31 @@ Whichever you pick, the machine doing the reading needs a **Bluetooth adapter wi
   It auto-uses the Mosquitto broker add-on — **scan and pick your meter** in the add-on's **Meter Pairing** panel, then **pair it
   right in HA** (it shows the passkey to type on the meter — no SSH, no MAC hunting).
 
-- **🐧 Standalone script** — if your HA runs in a **VM / away from the meter**, run `keypad_meter.py` as a systemd service on a small Linux box (a **Pi Zero W** is ideal) sitting next to the meter. Instructions below.
+- **🐳 Standalone Docker** — any Docker host near the meter. Bundles the reader **and** the same scan/pair web GUI on port `8099`. See [Run with Docker](#run-with-docker) below.
 
-Both publish the same three MQTT-discovery sensors to Home Assistant.
+- **🐧 Standalone script** — bare Python + systemd on a small Linux box (a **Pi Zero W** is ideal). Instructions further down.
+
+---
+
+## Run with Docker
+
+A standalone image with the meter bridge **and** the scan/pair web GUI — no Home Assistant required.
+
+**Requirements:** a Docker host with a **Bluetooth adapter in range of the meter**, `bluetoothd` running on the host, and an **MQTT broker** for the sensors.
+
+```bash
+git clone https://github.com/itconor/powerni-keypad-plus-mqtt.git
+cd powerni-keypad-plus-mqtt/docker
+cp .env.example .env         # edit MQTT_HOST / MQTT_USER / MQTT_PASS
+docker compose up -d --build
+```
+
+Then open **`http://<host>:8099`** → **Scan for meter** → **Select** → **Pair** (type the passkey on the meter). The selected meter is saved to `docker/data/`, and the reader starts automatically once paired.
+
+Notes:
+- `network_mode: host` + `privileged: true` + the `/var/run/dbus` mount are required so the container can drive the host's Bluetooth (RFCOMM + pairing).
+- Leave `METER_MAC` blank in `.env` to pick the meter in the GUI, or set it to force a MAC.
+- If the scan finds nothing, the host has no Bluetooth adapter in range — same requirement as every other mode.
 
 ---
 
