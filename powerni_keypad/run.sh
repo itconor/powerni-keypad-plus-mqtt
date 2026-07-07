@@ -11,8 +11,8 @@ export METER_MAC="$(bashio::config 'meter_mac')"
 export METER_CH="$(bashio::config 'meter_channel')"
 export POLL_SECS="$(bashio::config 'poll_seconds')"
 
-if bashio::var.equals "${METER_MAC}" "AA:BB:CC:DD:EE:FF"; then
-    bashio::log.warning "meter_mac is still the placeholder — set it to your meter's Bluetooth MAC in the add-on Configuration tab."
+if bashio::var.is_empty "${METER_MAC}"; then
+    bashio::log.info "No meter_mac set — pick your meter with the Scan button in the 'Meter Pairing' panel."
 fi
 
 # --- MQTT: prefer an explicit host, else fall back to the Mosquitto add-on -
