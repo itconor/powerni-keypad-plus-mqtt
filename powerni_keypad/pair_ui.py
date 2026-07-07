@@ -76,6 +76,10 @@ def is_paired(mac):
 def _looks_like_meter(name):
     return bool(re.match(r"B2\d{5,}", name or "", re.I))
 
+_ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
+def _clean(s):
+    return _ANSI.sub("", s or "")
+
 def do_scan(secs=12):
     """Scan for nearby BT devices, populate STATE['devices']."""
     try:
@@ -126,44 +130,83 @@ def do_pair(mac):
         STATE.update(status="error: pexpect missing", pairing=False); return
     stop_bridge()
     STATE.update(pairing=True, passkey="", status="starting…")
-    log(f"Pairing {mac} …")
+    log(f"Pairing {mac} … watch for the code below.")
+    child = None
     try:
-        child = pexpect.spawn("bluetoothctl", encoding="utf-8", timeout=90)
-        for c in ("power on", "agent KeyboardDisplay", "default-agent",
-                  "pairable on", "scan on"):
-            child.sendline(c); time.sleep(0.4)
-        STATE["status"] = "scanning for the meter…"
+        child = pexpect.spawn("bluetoothctl", encoding="utf-8", timeout=5,
+                              codec_errors="ignore")
+        for c in ("power on", "agent KeyboardDisplay", "default-agent", "pairable on"):
+            child.sendline(c); time.sleep(0.5)
+        STATE["status"] = "pairing…"
         log("Make sure the meter isn't connected to your phone.")
-        time.sleep(6)
         child.sendline(f"pair {mac}")
-        pats = [r"Passkey:\s*(\d{6})", r"Enter passkey", r"Confirm passkey",
-                r"Pairing successful", r"Failed to pair", r"not available",
-                r"org\.bluez\.Error", pexpect.TIMEOUT, pexpect.EOF]
-        while True:
-            i = child.expect(pats, timeout=90)
-            if i == 0:
-                key = child.match.group(1)
-                STATE.update(passkey=key, status="TYPE THIS ON THE METER")
-                log(f"Passkey {key} — type it on the meter keypad now.")
-            elif i in (1, 2):
-                child.sendline("yes")
-            elif i == 3:
-                STATE.update(status="paired", paired=True, pairing=False)
-                log("Pairing successful ✔")
-                try: _btctl(f"trust {mac}", "scan off")
-                except Exception: pass
-                child.sendline("quit"); break
-            elif i in (4, 5, 6):
-                STATE.update(status="failed — retry", pairing=False)
-                log("Pairing failed. Ensure the meter is in range and not connected elsewhere.")
-                child.sendline("quit"); break
-            else:
-                STATE.update(status="timed out — retry", pairing=False)
-                log("Timed out waiting for pairing."); break
+
+        deadline = time.monotonic() + 150
+        pending = ""
+        while time.monotonic() < deadline and STATE["pairing"]:
+            try:
+                data = child.read_nonblocking(size=512, timeout=2)
+            except pexpect.TIMEOUT:
+                data = ""
+            except pexpect.EOF:
+                break
+            if not data:
+                continue
+            pending += _clean(data)
+            parts = re.split(r"[\r\n]+", pending)
+            pending = parts.pop()                      # keep the partial last line
+            for ln in parts:
+                ln = ln.strip()
+                if not ln:
+                    continue
+                low = ln.lower()
+                # surface the raw bluetoothctl lines that matter (skip prompt spam)
+                if any(k in low for k in ("passkey", "pin", "pairing", "confirm",
+                                          "agent", "fail", "success", "request",
+                                          "authentication")):
+                    log(f"» {ln}")
+                m = re.search(r"passkey[:\s]+0*(\d{1,6})", low)
+                if m:
+                    key = m.group(1).zfill(6)
+                    if key != STATE["passkey"]:
+                        STATE.update(passkey=key, status="TYPE THIS ON THE METER")
+                        log(f"★ Passkey {key} — type it on the meter keypad NOW.")
+                    continue
+                m2 = re.search(r"pin code[:\s]+0*(\d{1,8})", low)
+                if m2:
+                    STATE.update(passkey=m2.group(1), status="TYPE THIS PIN ON THE METER")
+                    log(f"★ PIN {m2.group(1)} — type it on the meter keypad NOW.")
+                    continue
+                if "confirm passkey" in low or "(yes/no)" in low:
+                    child.sendline("yes")
+                elif "enter passkey" in low or "enter pin" in low:
+                    STATE["status"] = "meter asked host to enter a code (unexpected)"
+                    log("BlueZ asked the HOST to enter a code — the meter should be entering. Paste this log.")
+                elif "pairing successful" in low:
+                    STATE.update(status="paired", paired=True)
+                    log("Pairing successful ✔")
+                    try: _btctl(f"trust {mac}")
+                    except Exception: pass
+                    break
+                elif ("failed to pair" in low or "not available" in low
+                      or "org.bluez.error" in low or "authentication failed" in low):
+                    STATE["status"] = "failed — retry"
+                    log("Pairing failed — see the lines above.")
+                    break
+        if not STATE["paired"] and STATE["status"] not in ("failed — retry",):
+            STATE["status"] = ("waiting — enter the code on the meter"
+                               if STATE["passkey"] else "no code seen — check the log")
     except Exception as e:
-        STATE.update(status=f"error: {e}", pairing=False); log(f"Error: {e}")
+        STATE.update(status=f"error: {e}"); log(f"Error: {e}")
     finally:
+        try:
+            if child and child.isalive():
+                child.sendline("quit"); child.close()
+        except Exception:
+            pass
         STATE["pairing"] = False
+        if not STATE["paired"] and is_paired(mac):
+            STATE.update(paired=True, status="paired")
         if STATE["paired"]:
             start_bridge()
 
