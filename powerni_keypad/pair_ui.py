@@ -14,6 +14,7 @@ the add-on Configuration tab (if any) takes precedence.
 import os, re, sys, time, threading, subprocess, collections
 from flask import Flask, jsonify, request, render_template_string
 
+VERSION     = "1.2.5"
 PLACEHOLDER = "AA:BB:CC:DD:EE:FF"
 DATA_DIR    = "/data"
 MAC_FILE    = os.path.join(DATA_DIR, "meter_mac")
@@ -122,6 +123,43 @@ def do_scan(secs=12):
         STATE["scanning"] = False
         if STATE["paired"]:
             start_bridge()
+
+def bt_diag():
+    """Print the ground truth about Bluetooth support to the panel log."""
+    import socket as _sock
+    log("── Bluetooth diagnostic ──")
+    log(f"add-on pair_ui version: {VERSION}")
+    has = hasattr(_sock, "AF_BLUETOOTH")
+    log(f"python AF_BLUETOOTH const: {('yes = ' + str(_sock.AF_BLUETOOTH)) if has else 'MISSING'}")
+    af    = getattr(_sock, "AF_BLUETOOTH", 31)
+    proto = getattr(_sock, "BTPROTO_RFCOMM", 3)
+    try:
+        t = _sock.socket(af, _sock.SOCK_STREAM, proto); t.close()
+        log("raw RFCOMM socket: OK ✔  → privileged BT access is working")
+    except OSError as e:
+        hint = {97: "seccomp/sandbox still blocking → full_access not active (update to this version + Protection mode OFF + restart)",
+                93: "kernel has no Bluetooth-Classic RFCOMM → can't run in-container; use the standalone Docker/script on a Pi-OS box"}.get(e.errno, "")
+        log(f"raw RFCOMM socket: FAILED errno {e.errno} ({e.strerror})")
+        if hint:
+            log(f"   → {hint}")
+    try:
+        mods = set(os.listdir("/sys/module"))
+        present = [m for m in ("bluetooth", "rfcomm", "btusb", "hci_uart") if m in mods]
+        log("kernel modules loaded: " + (", ".join(present) if present else "none of bluetooth/rfcomm/btusb"))
+    except Exception as e:
+        log(f"module check failed: {e}")
+    try:
+        import gzip
+        if os.path.exists("/proc/config.gz"):
+            cfg = gzip.open("/proc/config.gz", "rt", errors="ignore").read()
+            for line in cfg.splitlines():
+                if line.startswith(("CONFIG_BT=", "CONFIG_BT_RFCOMM")):
+                    log(f"  {line}")
+        else:
+            log("/proc/config.gz not available (can't read kernel config)")
+    except Exception as e:
+        log(f"kernel-config read failed: {e}")
+    log("── end diagnostic ──")
 
 def do_reset():
     """Recover a wedged adapter / half-bonded device: power-cycle + remove."""
@@ -300,6 +338,7 @@ pre{background:#0a1120;border:1px solid #24334f;border-radius:8px;padding:10px;m
     <button id=pair onclick="pair()">Pair selected</button>
     <button class=sec onclick="unpair()">Remove pairing</button>
     <button class=sec onclick="reset()">Reset Bluetooth</button>
+    <button class=sec onclick="diag()">Diagnose</button>
   </div>
   <div id=keywrap style="display:none">
     <div class=mu style="margin-top:12px">Type this on the meter keypad now:</div>
@@ -320,6 +359,7 @@ async function scan(){ await fetch('scan',{method:'POST'}); }
 async function pair(){ await fetch('pair',{method:'POST'}); }
 async function unpair(){ await fetch('unpair',{method:'POST'}); }
 async function reset(){ await fetch('reset',{method:'POST'}); }
+async function diag(){ await fetch('diag',{method:'POST'}); }
 async function pick(mac){ await fetch('select?mac='+encodeURIComponent(mac),{method:'POST'}); }
 function devRow(d,sel){
   const b = d.mac===sel ? '<span class=tag>selected</span>'
@@ -383,6 +423,11 @@ def reset():
         threading.Thread(target=do_reset, daemon=True).start()
     return ("", 204)
 
+@app.post("/diag")
+def diag():
+    threading.Thread(target=bt_diag, daemon=True).start()
+    return ("", 204)
+
 @app.post("/pair")
 def pair():
     if not is_real_mac(STATE["mac"]):
@@ -403,6 +448,8 @@ def unpair():
     return ("", 204)
 
 def _boot():
+    log(f"PowerNI keypad+ pair_ui v{VERSION}")
+    bt_diag()
     # precedence: explicit config option > saved selection
     if is_real_mac(CFG_MAC):
         set_mac(CFG_MAC, "config")

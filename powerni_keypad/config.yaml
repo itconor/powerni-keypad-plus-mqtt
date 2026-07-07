@@ -1,5 +1,5 @@
 name: PowerNI keypad+ Meter
-version: "1.2.4"
+version: "1.2.5"
 slug: powerni_keypad
 # Base image ships its own s6-overlay init — don't let the Supervisor inject one,
 # or s6 isn't PID 1 ("s6-overlay-suexec: fatal: can only run as pid 1").
